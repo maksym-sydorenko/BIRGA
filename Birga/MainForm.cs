@@ -11,17 +11,18 @@ namespace Birga
     /// <summary>
     /// Main form
     /// </summary>
-    public partial class mainForm : Form
+    public partial class MainForm : Form
     {
-        string _path = "";
-        int _progress = 0;
-        FolderBrowserDialog _folderBrowserDialog =  new FolderBrowserDialog();
-        List<OHLC> _prices = null;
-        List<double> _values = null;
-        List<DateTime> _times = null;
-        Coordinates _mouseCoordinates;
-        string _selectedCompany = "";
-        bool load_started;
+        private string _path = "";
+        private int _progress = 0;
+        private FolderBrowserDialog _folderBrowserDialog =  new FolderBrowserDialog();
+        private List<OHLC> _prices = null;
+        private List<double> _values = null;
+        private List<DateTime> _times = null;
+        private Coordinates _mouseCoordinates;
+        private string _selectedCompany = "";
+        private bool load_started;
+        private Model _model = new Model();
 
         DataSelectForm _dataSelectForm = new DataSelectForm();
         ScottPlot.Plottables.Crosshair CH;
@@ -29,7 +30,7 @@ namespace Birga
         /// <summary>
         /// Constructor
         /// </summary>
-        public mainForm()
+        public MainForm()
         {
             InitializeComponent();
             pbLoadChart.Maximum = 100;
@@ -100,7 +101,14 @@ namespace Birga
         #region UI events
         private void mainForm_Load(object sender, EventArgs e)
         {
-            this.WindowState = FormWindowState.Maximized;
+            try
+            {
+                this.WindowState = FormWindowState.Maximized;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         private void btLoadCharts_Click(object sender, EventArgs e)
@@ -146,37 +154,94 @@ namespace Birga
 
         private void trbPointsTemplate_Scroll(object sender, EventArgs e)
         {
-
+            try
+            {
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         private void btTrainModel_Click(object sender, EventArgs e)
         {
-
+            try
+            {
+                _model.ModelTrain();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         private void btSaveModel_Click(object sender, EventArgs e)
         {
-
+            try
+            {
+                if (_folderBrowserDialog.ShowDialog() == DialogResult.OK)
+                {
+                    _path = _folderBrowserDialog.SelectedPath;
+                    _model.ModelSave(_path);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         private void btLoadModel_Click(object sender, EventArgs e)
         {
-
+            try
+            {
+                if (_folderBrowserDialog.ShowDialog() == DialogResult.OK)
+                {
+                    _path = _folderBrowserDialog.SelectedPath;
+                    _model.ModelLoad(_path);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         private void btStartDetection_Click(object sender, EventArgs e)
         {
-
+            try
+            {
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         private void ntPointsSelection_Click(object sender, EventArgs e)
         {
-            _dataSelectForm.Show(this);
+            try
+            {
+                if (!_dataSelectForm.Visible)
+                {
+                    _dataSelectForm.Show(this);
+                }
+            }
+            catch(Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         private void btClearLog_Click(object sender, EventArgs e)
         {
-
+            try
+            {
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
         #endregion
 
