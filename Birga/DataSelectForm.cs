@@ -5,10 +5,23 @@ using System.Windows.Forms;
 namespace Birga
 {
     /// <summary>
-    /// Form fo describe test data
+    /// Form for describe test data
     /// </summary>
     public partial class DataSelectForm : Form
     {
+        /// <summary>
+        /// Points count changed delegate
+        /// </summary>
+        /// <param name="sender">sender</param>
+        /// <param name="pointsCnt">points count</param>
+        public delegate void PointsCountChanged(object sender, int pointsCnt);
+
+        /// <summary>
+        /// Points count changed event
+        /// </summary>
+        public event PointsCountChanged OnPointsCountChanged;
+
+        private int _points_cnt = 0;
         /// <summary>
         /// Constructor
         /// </summary>
@@ -17,7 +30,7 @@ namespace Birga
             InitializeComponent();
             trbPointsTemplate.Minimum = 10;
             trbPointsTemplate.Maximum = 100;
-            trbPointsTemplate.Value = 20;
+            _points_cnt = trbPointsTemplate.Value = 20;
             lbPtTmplt.Text = String.Format("Points in template: {0}", trbPointsTemplate.Value);
             this.FormClosing += DataSelectForm_FormClosing;
         }
@@ -29,7 +42,7 @@ namespace Birga
         {
             get
             {
-                return trbPointsTemplate.Value;
+                return _points_cnt;
             }
         }
 
@@ -160,8 +173,12 @@ namespace Birga
         private void trbPointsTemplate_Scroll(object sender, EventArgs e)
         {
             lbPtTmplt.Text = String.Format("Points in template: {0}", trbPointsTemplate.Value);
+           _points_cnt = trbPointsTemplate.Value;
             ClearSelection();
+            if (OnPointsCountChanged != null)
+            {
+                OnPointsCountChanged(this, _points_cnt);
+            }
         }
-
     }
 }

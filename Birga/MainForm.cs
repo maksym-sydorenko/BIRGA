@@ -1,4 +1,5 @@
 ﻿using ScottPlot;
+using ScottPlot.Plottables;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -23,16 +24,17 @@ namespace Birga
         private string _selectedCompany = "";
         private bool load_started;
         private Model _model = new Model();
-
+        private AxisSpanUnderMouse _spanBeingDragged = null;
         DataSelectForm _dataSelectForm = new DataSelectForm();
         ScottPlot.Plottables.Crosshair CH;
-
+        ScottPlot.Plottables.HorizontalSpan HS;
         /// <summary>
         /// Constructor
         /// </summary>
         public MainForm()
         {
             InitializeComponent();
+            _dataSelectForm.OnPointsCountChanged += _dataSelectForm_OnPointsCountChanged;
             pbLoadChart.Maximum = 100;
             pbLoadChart.Minimum = 0;
 
@@ -40,20 +42,37 @@ namespace Birga
             CH.TextColor = Colors.White;
             CH.TextBackgroundColor = CH.HorizontalLine.Color;
 
+            HS = fpCharts.Plot.Add.HorizontalSpan(0, 0);
+            HS.IsDraggable = true;
+            HS.IsResizable = true;
+
             fpCharts.Menu?.Clear();
 
             fpCharts.Menu?.Add("Add Positive Template", (plot) =>
             {
                 DateTime dateTime = DateTime.FromOADate(_mouseCoordinates.X);
-                string selection =string.Format("[{0}][{1}][{2}]", _selectedCompany, dateTime.ToString("yyyy-MM-dd"), _dataSelectForm.PointsCount);
-                _dataSelectForm.AddSelection(selection, true);
+                string selection = string.Format("[{0}][{1}][{2}]", _selectedCompany, dateTime.ToString("yyyy-MM-dd"), _dataSelectForm.PointsCount);
+                if (_times != null
+                    && _times.Count > _dataSelectForm.PointsCount
+                    && dateTime >= _times[_dataSelectForm.PointsCount]
+                    && dateTime <= _times[_times.Count - 1])
+                {
+                    _dataSelectForm.AddSelection(selection, true);
+                }
             });
 
             fpCharts.Menu?.Add("Add Negative Template", (plot) =>
             {
                 DateTime dateTime = DateTime.FromOADate(_mouseCoordinates.X);
                 string selection = string.Format("[{0}][{1}][{2}]", _selectedCompany, dateTime.ToString("yyyy-MM-dd"), _dataSelectForm.PointsCount);
-                _dataSelectForm.AddSelection(selection, false);
+
+                if (_times != null
+                    && _times.Count > _dataSelectForm.PointsCount
+                    && dateTime >= _times[_dataSelectForm.PointsCount]
+                    && dateTime <= _times[_times.Count - 1])
+                {
+                    _dataSelectForm.AddSelection(selection, false);
+                }
             });
 
             fpCharts.Menu?.Add("Auto Scale", (plot) =>
@@ -68,10 +87,21 @@ namespace Birga
                 {
                     Pixel mousePixel = new Pixel(e.X, e.Y);
                     Coordinates mouseCoordinates = fpCharts.Plot.GetCoordinates(mousePixel);
-                    _mouseCoordinates = mouseCoordinates;
                     CH.Position = mouseCoordinates;
-                    CH.VerticalLine.Text = $"{DateTime.FromOADate(mouseCoordinates.X)}";
+                    CH.VerticalLine.Text = $"{(DateTime.FromOADate(mouseCoordinates.X)).ToString("yyyy-MM-dd")}";
                     CH.HorizontalLine.IsVisible = false;
+
+                    if (_spanBeingDragged != null)
+                    {
+                        Coordinates mouseNow = fpCharts.Plot.GetCoordinates(e.X, e.Y);
+                        _spanBeingDragged.DragTo(mouseNow);
+                    }
+                    else
+                    {
+                        var spanUnderMouse = GetSpanUnderMouse(e.X, e.Y);
+                        if (spanUnderMouse is null) Cursor = Cursors.Default;
+                        else if (spanUnderMouse.IsMoving) Cursor = Cursors.SizeAll;
+                    }
                     fpCharts.Refresh();
                 }
                 catch
@@ -79,6 +109,49 @@ namespace Birga
                 }
             };
 
+            fpCharts.MouseDown += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Right)
+                {
+                    return;
+                }
+                var span = GetSpanUnderMouse(e.X, e.Y);
+                if (span != null)
+                {
+                    _spanBeingDragged = span;
+                    fpCharts.UserInputProcessor.Disable();
+                }
+            };
+
+            fpCharts.MouseUp += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Right)
+                {
+                    return;
+                }
+                if (_spanBeingDragged != null)
+                {
+                    Pixel mousePixel = new Pixel(e.X, e.Y);
+                    Coordinates mouseCoordinates = fpCharts.Plot.GetCoordinates(mousePixel);
+                    _mouseCoordinates = mouseCoordinates;
+                    _spanBeingDragged = null;
+                    fpCharts.UserInputProcessor.Enable();
+                }
+                fpCharts.Refresh();
+            };
+
+        }
+
+        private void _dataSelectForm_OnPointsCountChanged(object sender, int pointsCnt)
+        {
+            try
+            {
+                RenderChart();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         private void LoadCharts(string path)
@@ -259,6 +332,13 @@ namespace Birga
 
             lock (_prices)
             {
+                if (_times.Count >= _dataSelectForm.PointsCount)
+                {
+                    HS = fpCharts.Plot.Add.HorizontalSpan(_times[0].ToOADate(), _times[_dataSelectForm.PointsCount].ToOADate());
+                    HS.IsDraggable = true;
+                    HS.IsResizable = false;
+                }
+
                 var ct = plot.Add.Candlestick(_prices);
                 ct.Axes.YAxis = plot.Axes.Left;
                 fpCharts.Plot.Axes.DateTimeTicksBottom();
@@ -275,6 +355,20 @@ namespace Birga
 
             fpCharts.Refresh();
 
+        }
+
+        private AxisSpanUnderMouse GetSpanUnderMouse(float x, float y)
+        {
+            CoordinateRect rect = fpCharts.Plot.GetCoordinateRect(x, y, radius: 10);
+
+            foreach (AxisSpan span in fpCharts.Plot.GetPlottables<AxisSpan>().Reverse())
+            {
+                AxisSpanUnderMouse spanUnderMouse = span.UnderMouse(rect);
+                if (spanUnderMouse != null)
+                    return spanUnderMouse;
+            }
+
+            return null;
         }
 
         #endregion
